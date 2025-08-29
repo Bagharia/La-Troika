@@ -4,6 +4,15 @@ const mongoose = require("mongoose");
 const cors = require("cors");
 require("dotenv").config(); // Permet de charger les variables d'environnement depuis le fichier .env
 
+// Import des modèles
+const User = require('./models/User');
+const Product = require('./models/Product');
+const Cart = require('./models/Cart');
+const Order = require('./models/Order');
+
+// Import des routes de test
+const testRoutes = require('./test-routes');
+
 // Création de l'application Express
 const app = express();
 
@@ -12,6 +21,9 @@ app.use(express.json());
 
 // Middleware CORS pour autoriser les requêtes venant d'un autre domaine
 app.use(cors());
+
+// Utilisation des routes de test
+app.use('/api', testRoutes);
 
 // Route de test (affiche un message simple pour tester l'API)
 app.get("/", (req, res) => {
@@ -34,15 +46,7 @@ mongoose.connect(mongoURI, {
     .then(() => console.log("✅ MongoDB connecté !"))
     .catch((err) => console.error("❌ Erreur de connexion MongoDB :", err));
 
-// Exemple de modèle Mongoose (Schema et Model)
-const ProductSchema = new mongoose.Schema({
-    name: String,
-    price: Number,
-    description: String,
-    stock: Number,
-});
-
-const Product = mongoose.model("Product", ProductSchema);
+// Les modèles sont maintenant importés depuis les fichiers séparés
 
 // Exemple de route pour obtenir tous les produits
 app.get("/products", async (req, res) => {
