@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import HomePage from './pages/HomePage';
 import ProductsPage from './pages/ProductsPage';
 import LoginPage from './pages/LoginPage';
+import RegisterPage from './pages/RegisterPage';
 import './index.css'
 
 function App() {
@@ -24,6 +25,9 @@ function App() {
           
           {/* Route connexion */}
           <Route path="/connexion" element={<LoginPage />} />
+          
+          {/* Route inscription */}
+          <Route path="/inscription" element={<RegisterPage />} />
           
           {/* Route 404 - Page non trouvée */}
           <Route path="*" element={<div>Page non trouvée</div>} />
