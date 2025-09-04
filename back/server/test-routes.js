@@ -13,10 +13,12 @@ const Order = require('./models/Order');
 // Test création d'un utilisateur
 router.post('/test/user', async (req, res) => {
     try {
+        // Générer un email unique
+        const timestamp = Date.now();
         const testUser = new User({
             firstName: 'Test',
             lastName: 'Utilisateur',
-            email: 'test@latroika.com',
+            email: `test${timestamp}@latroika.com`,
             password: 'motdepasse123',
             phone: '0123456789',
             address: {
@@ -61,49 +63,98 @@ router.get('/test/users', async (req, res) => {
 // Test création d'un produit
 router.post('/test/product', async (req, res) => {
     try {
-        const testProduct = new Product({
-            name: 'Sac à main cuir premium',
-            description: 'Magnifique sac en cuir véritable, parfait pour toutes les occasions',
-            shortDescription: 'Sac cuir premium élégant',
-            price: 89.99,
-            originalPrice: 129.99,
-            category: 'femmes',
-            subcategory: 'sacs',
-            brand: 'La Troika',
-            stock: 25,
-            images: [{
-                url: 'https://example.com/sac1.jpg',
-                alt: 'Sac à main cuir noir',
-                isMain: true
-            }],
-            colors: [{
-                name: 'Noir',
-                code: '#000000',
-                available: true
-            }],
-            sizes: [{
-                name: 'Unique',
-                available: true
-            }],
-            materials: ['Cuir véritable', 'Laiton'],
-            features: ['Doublure en tissu', 'Poches intérieures', 'Fermeture à clapet'],
-            tags: ['cuir', 'premium', 'élégant', 'sacs'],
-            isOnSale: true,
-            salePercentage: 30,
-            shipping: {
-                weight: 0.8,
-                freeShipping: true
-            }
-        });
+        const { name, description, price, stock, category, subcategory } = req.body;
+        
+        // Vérifier si des données ont été envoyées
+        if (name && description && price) {
+            // Créer un produit avec les données du formulaire
+            const timestamp = Date.now();
+            const newProduct = new Product({
+                name: `${name} ${timestamp}`,
+                description: description,
+                shortDescription: description.substring(0, 100),
+                price: parseFloat(price),
+                originalPrice: parseFloat(price) * 1.2, // Prix original 20% plus élevé
+                category: category || 'femmes',
+                subcategory: subcategory || 'sacs',
+                brand: 'La Troika',
+                stock: parseInt(stock) || 0,
+                images: [{
+                    url: 'https://example.com/default.jpg',
+                    alt: name,
+                    isMain: true
+                }],
+                colors: [{
+                    name: 'Noir',
+                    code: '#000000',
+                    available: true
+                }],
+                sizes: [{
+                    name: 'Unique',
+                    available: true
+                }],
+                materials: ['Matériau standard'],
+                features: ['Caractéristique standard'],
+                tags: [category, 'nouveau'],
+                isOnSale: false,
+                shipping: {
+                    weight: 0.5,
+                    freeShipping: true
+                }
+            });
 
-        const savedProduct = await testProduct.save();
-        res.status(201).json({
-            message: '✅ Produit de test créé avec succès !',
-            product: savedProduct
-        });
+            const savedProduct = await newProduct.save();
+            res.status(201).json({
+                message: '✅ Produit créé avec succès !',
+                product: savedProduct
+            });
+        } else {
+            // Créer un produit de test par défaut
+            const timestamp = Date.now();
+            const testProduct = new Product({
+                name: `Sac à main cuir premium ${timestamp}`,
+                description: 'Magnifique sac en cuir véritable, parfait pour toutes les occasions',
+                shortDescription: 'Sac cuir premium élégant',
+                price: 89.99,
+                originalPrice: 129.99,
+                category: 'femmes',
+                subcategory: 'sacs',
+                brand: 'La Troika',
+                stock: 25,
+                images: [{
+                    url: 'https://example.com/sac1.jpg',
+                    alt: 'Sac à main cuir noir',
+                    isMain: true
+                }],
+                colors: [{
+                    name: 'Noir',
+                    code: '#000000',
+                    available: true
+                }],
+                sizes: [{
+                    name: 'Unique',
+                    available: true
+                }],
+                materials: ['Cuir véritable', 'Laiton'],
+                features: ['Doublure en tissu', 'Poches intérieures', 'Fermeture à clapet'],
+                tags: ['cuir', 'premium', 'élégant', 'sacs'],
+                isOnSale: true,
+                salePercentage: 30,
+                shipping: {
+                    weight: 0.8,
+                    freeShipping: true
+                }
+            });
+
+            const savedProduct = await testProduct.save();
+            res.status(201).json({
+                message: '✅ Produit de test créé avec succès !',
+                product: savedProduct
+            });
+        }
     } catch (error) {
         res.status(400).json({
-            message: '❌ Erreur lors de la création du produit de test',
+            message: '❌ Erreur lors de la création du produit',
             error: error.message
         });
     }
@@ -121,6 +172,38 @@ router.get('/test/products', async (req, res) => {
     } catch (error) {
         res.status(500).json({
             message: '❌ Erreur lors de la récupération des produits',
+            error: error.message
+        });
+    }
+});
+
+// Test suppression d'un produit
+router.delete('/test/product/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        // Vérifier si le produit existe
+        const product = await Product.findById(id);
+        if (!product) {
+            return res.status(404).json({
+                message: '❌ Produit non trouvé',
+                error: 'Le produit avec cet ID n\'existe pas'
+            });
+        }
+
+        // Supprimer le produit
+        await Product.findByIdAndDelete(id);
+        
+        res.json({
+            message: '✅ Produit supprimé avec succès !',
+            deletedProduct: {
+                id: id,
+                name: product.name
+            }
+        });
+    } catch (error) {
+        res.status(500).json({
+            message: '❌ Erreur lors de la suppression du produit',
             error: error.message
         });
     }

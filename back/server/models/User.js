@@ -98,7 +98,7 @@ userSchema.methods.toSafeObject = function() {
     const userObject = this.toObject();
     delete userObject.password;
     delete userObject.emailVerificationToken;
-    delete userSchema.passwordResetToken;
+    delete userObject.passwordResetToken;
     return userObject;
 };
 
