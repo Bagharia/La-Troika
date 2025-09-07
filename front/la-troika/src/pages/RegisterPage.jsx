@@ -1,5 +1,7 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
+import Navbar from '../components/Navbar';
 
 function RegisterPage() {
     const [formData, setFormData] = useState({
@@ -11,6 +13,10 @@ function RegisterPage() {
         acceptTerms: false
     });
     const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState('');
+    const [errors, setErrors] = useState({});
+    const { register } = useAuth();
+    const navigate = useNavigate();
 
     const handleInputChange = (e) => {
         const { name, value, type, checked } = e.target;
@@ -20,73 +26,83 @@ function RegisterPage() {
         }));
     };
 
+    const validateForm = () => {
+        const newErrors = {};
+
+        if (!formData.firstName.trim()) {
+            newErrors.firstName = 'Le prénom est requis';
+        }
+
+        if (!formData.lastName.trim()) {
+            newErrors.lastName = 'Le nom est requis';
+        }
+
+        if (!formData.email.trim()) {
+            newErrors.email = 'L\'email est requis';
+        } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+            newErrors.email = 'L\'email n\'est pas valide';
+        }
+
+        if (!formData.password) {
+            newErrors.password = 'Le mot de passe est requis';
+        } else if (formData.password.length < 8) {
+            newErrors.password = 'Le mot de passe doit contenir au moins 8 caractères';
+        }
+
+        if (formData.password !== formData.confirmPassword) {
+            newErrors.confirmPassword = 'Les mots de passe ne correspondent pas';
+        }
+
+        if (!formData.acceptTerms) {
+            newErrors.acceptTerms = 'Vous devez accepter les conditions d\'utilisation';
+        }
+
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setIsLoading(true);
+        setError('');
         
-        // Simulation d'une inscription (à remplacer par votre logique d'enregistrement)
-        setTimeout(() => {
-            console.log('Tentative d\'inscription avec:', formData);
+        if (!validateForm()) {
             setIsLoading(false);
-            // Ici vous ajouterez votre logique d'inscription
-        }, 1000);
+            return;
+        }
+
+        try {
+            const userData = {
+                firstName: formData.firstName,
+                lastName: formData.lastName,
+                email: formData.email,
+                password: formData.password,
+                address: {
+                    street: '',
+                    city: '',
+                    postalCode: '',
+                    country: 'France'
+                }
+            };
+
+            const result = await register(userData);
+            
+            if (result.success) {
+                // Redirection vers la page d'accueil après inscription réussie
+                navigate('/');
+            } else {
+                setError(result.message);
+            }
+        } catch (error) {
+            setError('Erreur de connexion au serveur');
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 ">
-            {/* Barre de livraison gratuite - Fixe en haut */}
-            <div className="bg-black text-white text-center py-2 px-4 font-semibold text-xs md:text-sm">
-                🚚 Livraison gratuite à partir de 40€ | Commandez maintenant !
-            </div>
-
-            <nav className="bg-white shadow-md sticky top-0 z-50">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="flex justify-between items-center h-16">
-                        {/* Logo */}
-                        <Link to="/" className="flex-shrink-0">
-                            <h1 className="text-2xl font-bold text-gray-800">La Troika</h1>
-                        </Link>
-                        
-                        {/* Navigation centrale */}
-                        <div className="hidden md:flex space-x-8">
-                            <Link to="/produits" className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium transition-colors">
-                                Tous nos produits
-                            </Link>
-                            <Link to="/produits/femmes" className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium transition-colors">
-                                Femmes
-                            </Link>
-                            <Link to="/produits/hommes" className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium transition-colors">
-                                Hommes
-                            </Link>
-                            <Link to="/produits/accessoires" className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium transition-colors">
-                                Accessoires
-                            </Link>
-                        </div>
-                        
-                        {/* Actions utilisateur */}
-                        <div className="flex items-center space-x-4">
-                            <button className="text-gray-600 hover:text-gray-900 p-2">
-                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                </svg>
-                            </button>
-                            <button className="text-gray-600 hover:text-gray-900 p-2">
-                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                                </svg>
-                            </button>
-                            <button className="text-gray-600 hover:text-gray-900 p-2 relative">
-                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-2.5 5M7 13l2.5 5m6-5v6a2 2 0 01-2 2H9a2 2 0 01-2-2v-6m6 0V9a2 2 0 00-2-2H9a2 2 0 00-2 2v4.01" />
-                                </svg>
-                                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                                    0
-                                </span>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </nav>
+        <div className="min-h-screen bg-gray-50">
+            <Navbar />
 
             <div className="flex justify-center items-center py-12">
                 <div className="sm:mx-auto sm:w-full sm:max-w-md">
@@ -115,9 +131,14 @@ function RegisterPage() {
                                         required
                                         value={formData.firstName}
                                         onChange={handleInputChange}
-                                        className="appearance-none relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-800 focus:border-gray-800 focus:z-10 sm:text-sm"
+                                        className={`appearance-none relative block w-full px-3 py-3 border placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-800 focus:border-gray-800 focus:z-10 sm:text-sm ${
+                                            errors.firstName ? 'border-red-300' : 'border-gray-300'
+                                        }`}
                                         placeholder="Votre prénom"
                                     />
+                                    {errors.firstName && (
+                                        <p className="mt-1 text-sm text-red-600">{errors.firstName}</p>
+                                    )}
                                 </div>
 
                                 <div>
@@ -132,9 +153,14 @@ function RegisterPage() {
                                         required
                                         value={formData.lastName}
                                         onChange={handleInputChange}
-                                        className="appearance-none relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-800 focus:border-gray-800 focus:z-10 sm:text-sm"
+                                        className={`appearance-none relative block w-full px-3 py-3 border placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-800 focus:border-gray-800 focus:z-10 sm:text-sm ${
+                                            errors.lastName ? 'border-red-300' : 'border-gray-300'
+                                        }`}
                                         placeholder="Votre nom"
                                     />
+                                    {errors.lastName && (
+                                        <p className="mt-1 text-sm text-red-600">{errors.lastName}</p>
+                                    )}
                                 </div>
                             </div>
 
@@ -151,9 +177,14 @@ function RegisterPage() {
                                     required
                                     value={formData.email}
                                     onChange={handleInputChange}
-                                    className="appearance-none relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-800 focus:border-gray-800 focus:z-10 sm:text-sm"
+                                    className={`appearance-none relative block w-full px-3 py-3 border placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-800 focus:border-gray-800 focus:z-10 sm:text-sm ${
+                                        errors.email ? 'border-red-300' : 'border-gray-300'
+                                    }`}
                                     placeholder="votre@email.com"
                                 />
+                                {errors.email && (
+                                    <p className="mt-1 text-sm text-red-600">{errors.email}</p>
+                                )}
                             </div>
 
                             {/* Mot de passe */}
@@ -169,12 +200,17 @@ function RegisterPage() {
                                     required
                                     value={formData.password}
                                     onChange={handleInputChange}
-                                    className="appearance-none relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-800 focus:border-gray-800 focus:z-10 sm:text-sm"
+                                    className={`appearance-none relative block w-full px-3 py-3 border placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-800 focus:border-gray-800 focus:z-10 sm:text-sm ${
+                                        errors.password ? 'border-red-300' : 'border-gray-300'
+                                    }`}
                                     placeholder="Créez un mot de passe"
                                 />
                                 <p className="mt-1 text-xs text-gray-500">
-                                    Au moins 8 caractères avec des lettres et des chiffres
+                                    Au moins 8 caractères
                                 </p>
+                                {errors.password && (
+                                    <p className="mt-1 text-sm text-red-600">{errors.password}</p>
+                                )}
                             </div>
 
                             {/* Confirmation du mot de passe */}
@@ -190,9 +226,14 @@ function RegisterPage() {
                                     required
                                     value={formData.confirmPassword}
                                     onChange={handleInputChange}
-                                    className="appearance-none relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-800 focus:border-gray-800 focus:z-10 sm:text-sm"
+                                    className={`appearance-none relative block w-full px-3 py-3 border placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-800 focus:border-gray-800 focus:z-10 sm:text-sm ${
+                                        errors.confirmPassword ? 'border-red-300' : 'border-gray-300'
+                                    }`}
                                     placeholder="Confirmez votre mot de passe"
                                 />
+                                {errors.confirmPassword && (
+                                    <p className="mt-1 text-sm text-red-600">{errors.confirmPassword}</p>
+                                )}
                             </div>
 
                             {/* Conditions d'utilisation */}
@@ -205,7 +246,9 @@ function RegisterPage() {
                                         required
                                         checked={formData.acceptTerms}
                                         onChange={handleInputChange}
-                                        className="h-4 w-4 text-gray-800 focus:ring-gray-800 border-gray-300 rounded"
+                                        className={`h-4 w-4 text-gray-800 focus:ring-gray-800 border-gray-300 rounded ${
+                                            errors.acceptTerms ? 'border-red-300' : ''
+                                        }`}
                                     />
                                 </div>
                                 <div className="ml-3 text-sm">
@@ -219,8 +262,17 @@ function RegisterPage() {
                                             politique de confidentialité
                                         </Link>
                                     </label>
+                                    {errors.acceptTerms && (
+                                        <p className="mt-1 text-sm text-red-600">{errors.acceptTerms}</p>
+                                    )}
                                 </div>
                             </div>
+
+                            {error && (
+                                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+                                    ❌ {error}
+                                </div>
+                            )}
 
                             {/* Bouton d'inscription */}
                             <div>
@@ -286,3 +338,4 @@ function RegisterPage() {
 }
 
 export default RegisterPage;
+

@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Connexion Frontend-Backend</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        .test { margin: 20px 0; padding: 15px; border: 1px solid #ccc; border-radius: 5px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+        input { padding: 8px; margin: 5px; width: 200px; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Test Connexion Frontend-Backend</h1>
+    
+    <div class="test">
+        <h3>1️⃣ Test de connexion de base</h3>
+        <button onclick="testBaseConnection()">Tester la connexion</button>
+        <div id="base-result"></div>
+    </div>
+
+    <div class="test">
+        <h3>2️⃣ Test d'inscription</h3>
+        <input type="email" id="register-email" placeholder="Email" value="test@frontend.com">
+        <input type="password" id="register-password" placeholder="Mot de passe" value="password123">
+        <button onclick="testRegister()">Tester l'inscription</button>
+        <div id="register-result"></div>
+    </div>
+
+    <div class="test">
+        <h3>3️⃣ Test de connexion</h3>
+        <input type="email" id="login-email" placeholder="Email" value="test@frontend.com">
+        <input type="password" id="login-password" placeholder="Mot de passe" value="password123">
+        <button onclick="testLogin()">Tester la connexion</button>
+        <div id="login-result"></div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:5000/api/auth';
+
+        async function testBaseConnection() {
+            const resultDiv = document.getElementById('base-result');
+            try {
+                const response = await fetch('http://localhost:5000');
+                const text = await response.text();
+                resultDiv.innerHTML = `<div class="success">✅ Serveur accessible: ${text}</div>`;
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Erreur: ${error.message}</div>`;
+            }
+        }
+
+        async function testRegister() {
+            const resultDiv = document.getElementById('register-result');
+            const email = document.getElementById('register-email').value;
+            const password = document.getElementById('register-password').value;
+
+            try {
+                const response = await fetch(`${API_URL}/register`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        firstName: 'Test',
+                        lastName: 'Frontend',
+                        email: email,
+                        password: password,
+                        phone: '0123456789',
+                        address: {
+                            street: '123 Rue Test',
+                            city: 'Paris',
+                            postalCode: '75001',
+                            country: 'France'
+                        }
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `<div class="success">✅ Inscription réussie: ${data.message}</div>`;
+                } else {
+                    resultDiv.innerHTML = `<div class="error">❌ Erreur: ${data.message}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Erreur réseau: ${error.message}</div>`;
+            }
+        }
+
+        async function testLogin() {
+            const resultDiv = document.getElementById('login-result');
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+
+            try {
+                const response = await fetch(`${API_URL}/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: email,
+                        password: password
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `<div class="success">✅ Connexion réussie: ${data.message}</div>`;
+                } else {
+                    resultDiv.innerHTML = `<div class="error">❌ Erreur: ${data.message}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Erreur réseau: ${error.message}</div>`;
+            }
+        }
+
+        // Test automatique au chargement
+        window.onload = function() {
+            testBaseConnection();
+        };
+    </script>
+</body>
+</html>

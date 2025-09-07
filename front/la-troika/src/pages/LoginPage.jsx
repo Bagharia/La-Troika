@@ -1,5 +1,7 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
+import Navbar from '../components/Navbar';
 
 function LoginPage() {
     const [formData, setFormData] = useState({
@@ -7,6 +9,9 @@ function LoginPage() {
         password: ''
     });
     const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState('');
+    const { login } = useAuth();
+    const navigate = useNavigate();
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
@@ -19,70 +24,27 @@ function LoginPage() {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setIsLoading(true);
+        setError('');
         
-        // Simulation d'une connexion (à remplacer par votre logique d'authentification)
-        setTimeout(() => {
-            console.log('Tentative de connexion avec:', formData);
+        try {
+            const result = await login(formData.email, formData.password);
+            
+            if (result.success) {
+                // Redirection vers la page d'accueil après connexion réussie
+                navigate('/');
+            } else {
+                setError(result.message);
+            }
+        } catch (error) {
+            setError('Erreur de connexion au serveur');
+        } finally {
             setIsLoading(false);
-            // Ici vous ajouterez votre logique de connexion
-        }, 1000);
+        }
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 ">
-            {/* Barre de livraison gratuite - Fixe en haut */}
-            <div className="bg-black text-white text-center py-2 px-4 font-semibold text-xs md:text-sm">
-                🚚 Livraison gratuite à partir de 40€ | Commandez maintenant !
-            </div>
-
-            <nav className="bg-white shadow-md sticky top-0 z-50">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="flex justify-between items-center h-16">
-                        {/* Logo */}
-                        <Link to="/" className="flex-shrink-0">
-                            <h1 className="text-2xl font-bold text-gray-800">La Troika</h1>
-                        </Link>
-                        
-                        {/* Navigation centrale */}
-                        <div className="hidden md:flex space-x-8">
-                            <Link to="/produits" className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium transition-colors">
-                                Tous nos produits
-                            </Link>
-                            <Link to="/produits/femmes" className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium transition-colors">
-                                Femmes
-                            </Link>
-                            <Link to="/produits/hommes" className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium transition-colors">
-                                Hommes
-                            </Link>
-                            <Link to="/produits/accessoires" className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium transition-colors">
-                                Accessoires
-                            </Link>
-                        </div>
-                        
-                        {/* Actions utilisateur */}
-                        <div className="flex items-center space-x-4">
-                            <button className="text-gray-600 hover:text-gray-900 p-2">
-                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                </svg>
-                            </button>
-                            <button className="text-gray-600 hover:text-gray-900 p-2">
-                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                                </svg>
-                            </button>
-                            <button className="text-gray-600 hover:text-gray-900 p-2 relative">
-                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-2.5 5M7 13l2.5 5m6-5v6a2 2 0 01-2 2H9a2 2 0 01-2-2v-6m6 0V9a2 2 0 00-2-2H9a2 2 0 00-2 2v4.01" />
-                                </svg>
-                                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                                    0
-                                </span>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </nav>
+        <div className="min-h-screen bg-gray-50">
+            <Navbar />
 
             <div className="flex justify-center items-center min-h-[calc(100vh-200px)]">
                 <div className="sm:mx-auto sm:w-full sm:max-w-md">
@@ -150,6 +112,12 @@ function LoginPage() {
                                 </Link>
                             </div>
                         </div>
+
+                        {error && (
+                            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+                                ❌ {error}
+                            </div>
+                        )}
 
                         <div>
                             <button

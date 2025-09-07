@@ -114,8 +114,8 @@ router.post('/login', async (req, res) => {
             });
         }
 
-        // Trouver l'utilisateur
-        const user = await User.findOne({ email });
+        // Trouver l'utilisateur avec le mot de passe inclus
+        const user = await User.findOne({ email }).select('+password');
         if (!user) {
             return res.status(401).json({
                 message: '❌ Identifiants incorrects',

@@ -13,6 +13,9 @@ const Order = require('./models/Order');
 // Import des routes de test
 const testRoutes = require('./test-routes');
 
+// Import des routes d'authentification
+const authRoutes = require('./routes/auth');
+
 // Création de l'application Express
 const app = express();
 
@@ -24,6 +27,9 @@ app.use(cors());
 
 // Utilisation des routes de test
 app.use('/api', testRoutes);
+
+// Utilisation des routes d'authentification
+app.use('/api/auth', authRoutes);
 
 // Route de test (affiche un message simple pour tester l'API)
 app.get("/", (req, res) => {
