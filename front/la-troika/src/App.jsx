@@ -28,10 +28,10 @@ function App() {
             <Route path="/panier" element={<div>Panier (à créer)</div>} />
             
             {/* Route connexion */}
-            <Route path="/connexion" element={<LoginPage />} />
+            <Route path="/login" element={<LoginPage />} />
             
             {/* Route inscription */}
-            <Route path="/inscription" element={<RegisterPage />} />
+            <Route path="/register" element={<RegisterPage />} />
             
             {/* Route test API */}
             <Route path="/test-api" element={<ApiTestPage />} />
