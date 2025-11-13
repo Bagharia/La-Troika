@@ -10,6 +10,8 @@ const xssClean = require("xss-clean");
 const compression = require("compression");
 const morgan = require("morgan");
 require("dotenv").config({ path: path.join(__dirname, '.env') });
+const swaggerUi = require('swagger-ui-express');
+const swaggerSpec = require('./swagger-spec');
 
 // Import des modèles
 const User = require('./models/User');
@@ -23,6 +25,8 @@ const Order = require('./models/Order');
 // Import des routes d'authentification
 const authRoutes = require('./routes/auth');
 const { authenticateToken, requireRole } = require('./utils/auth');
+const Joi = require('joi');
+const { validate } = require('./utils/validate');
 
 // Création de l'application Express
 const app = express();
@@ -119,6 +123,10 @@ const apiLimiter = rateLimit({
 });
 app.use('/api', apiLimiter);
 
+// Swagger docs
+app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.get('/api/docs.json', (req, res) => res.json(swaggerSpec));
+
 // Utilisation des routes de test (désactivées)
 // if (NODE_ENV !== 'production') {
 //     app.use('/api', testRoutes);
@@ -164,20 +172,98 @@ mongoose.connect(mongoURI, {
 
 // Les modèles sont maintenant importés depuis les fichiers séparés
 
-// Exemple de route pour obtenir tous les produits
+// Liste de produits avec pagination/tri/filtre
 app.get("/products", async (req, res) => {
     try {
-        const products = await Product.find(); // Récupère tous les produits
-        res.json(products); // Envoie la liste des produits en réponse
+        const {
+            page = '1',
+            limit = '12',
+            sort = 'createdAt',
+            order = 'desc',
+            q,
+            category,
+            brand,
+            minPrice,
+            maxPrice,
+            isOnSale
+        } = req.query;
+
+        const pageNum = Math.max(parseInt(page, 10) || 1, 1);
+        const limitNum = Math.min(Math.max(parseInt(limit, 10) || 12, 1), 100);
+
+        const filter = { isActive: true };
+        if (q) {
+            filter.$text = { $search: q };
+        }
+        if (category) {
+            filter.category = category;
+        }
+        if (brand) {
+            filter.brand = brand;
+        }
+        if (minPrice !== undefined || maxPrice !== undefined) {
+            filter.price = {};
+            if (minPrice !== undefined) filter.price.$gte = Number(minPrice);
+            if (maxPrice !== undefined) filter.price.$lte = Number(maxPrice);
+        }
+        if (isOnSale !== undefined) {
+            filter.isOnSale = String(isOnSale).toLowerCase() === 'true';
+        }
+
+        const sortDir = String(order).toLowerCase() === 'asc' ? 1 : -1;
+        const sortObj = { [sort]: sortDir };
+
+        const [items, total] = await Promise.all([
+            Product.find(filter)
+                .sort(sortObj)
+                .skip((pageNum - 1) * limitNum)
+                .limit(limitNum),
+            Product.countDocuments(filter)
+        ]);
+
+        res.json({
+            items,
+            page: pageNum,
+            limit: limitNum,
+            total,
+            pages: Math.ceil(total / limitNum)
+        });
     } catch (err) {
         console.error("Erreur lors de la récupération des produits", err);
         res.status(500).send("Erreur serveur");
     }
 });
 
+// Obtenir un produit par ID
+app.get('/products/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const product = await Product.findById(id);
+        if (!product) {
+            return res.status(404).json({ message: 'Produit non trouvé' });
+        }
+        res.json(product);
+    } catch (err) {
+        console.error('Erreur lors de la récupération du produit', err);
+        res.status(500).send('Erreur serveur');
+    }
+});
+
 // Exemple de route pour ajouter un produit
 // Création d'un produit (admin uniquement)
-app.post("/products", authenticateToken, requireRole('admin'), async (req, res) => {
+const productCreateSchema = {
+    body: Joi.object({
+        name: Joi.string().max(100).required(),
+        description: Joi.string().max(1000).required(),
+        price: Joi.number().min(0).required(),
+        stock: Joi.number().integer().min(0).required(),
+        category: Joi.string().valid('femmes', 'hommes', 'accessoires', 'nouveautes', 'promotions').optional(),
+        subcategory: Joi.string().max(50).optional(),
+        brand: Joi.string().max(50).required()
+    })
+};
+
+app.post("/products", authenticateToken, requireRole('admin'), validate(productCreateSchema), async (req, res) => {
     try {
         const { name, price, description, stock, category, subcategory, brand } = req.body;
 
@@ -190,17 +276,11 @@ app.post("/products", authenticateToken, requireRole('admin'), async (req, res) 
             return res.status(400).json({ message: 'Champs requis manquants: name, price, description, stock, brand' });
         }
 
-        const numericPrice = Number(price);
-        const numericStock = Number(stock);
-        if (Number.isNaN(numericPrice) || Number.isNaN(numericStock)) {
-            return res.status(400).json({ message: 'price et stock doivent être numériques' });
-        }
-
         const newProduct = new Product({
             name,
-            price: numericPrice,
+            price,
             description,
-            stock: numericStock,
+            stock,
             category, // optionnel, défaut dans le schéma
             subcategory,
             brand,
@@ -216,6 +296,47 @@ app.post("/products", authenticateToken, requireRole('admin'), async (req, res) 
     }
 });
 
+// Mettre à jour un produit (admin uniquement)
+const productUpdateSchema = {
+    params: Joi.object({ id: Joi.string().length(24).hex().required() }),
+    body: Joi.object({
+        name: Joi.string().max(100).optional(),
+        description: Joi.string().max(1000).optional(),
+        price: Joi.number().min(0).optional(),
+        stock: Joi.number().integer().min(0).optional(),
+        category: Joi.string().valid('femmes', 'hommes', 'accessoires', 'nouveautes', 'promotions').optional(),
+        subcategory: Joi.string().max(50).optional(),
+        brand: Joi.string().max(50).optional()
+    })
+};
+
+app.put('/products/:id', authenticateToken, requireRole('admin'), validate(productUpdateSchema), async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { name, price, description, stock, category, subcategory, brand } = req.body;
+
+        const update = {};
+        if (name !== undefined) update.name = name;
+        if (price !== undefined) update.price = price;
+        if (description !== undefined) update.description = description;
+        if (stock !== undefined) update.stock = stock;
+        if (category !== undefined) update.category = category;
+        if (subcategory !== undefined) update.subcategory = subcategory;
+        if (brand !== undefined) update.brand = brand;
+
+        const updated = await Product.findByIdAndUpdate(id, update, { new: true, runValidators: true });
+        if (!updated) {
+            return res.status(404).json({ message: 'Produit non trouvé' });
+        }
+        res.json(updated);
+    } catch (err) {
+        console.error("Erreur lors de la mise à jour du produit", err);
+        if (err && err.name === 'ValidationError') {
+            return res.status(400).json({ message: 'Validation échouée', error: err.message });
+        }
+        res.status(500).send('Erreur serveur');
+    }
+});
 // Suppression d'un produit (admin uniquement)
 app.delete('/products/:id', authenticateToken, requireRole('admin'), async (req, res) => {
     try {
@@ -228,6 +349,21 @@ app.delete('/products/:id', authenticateToken, requireRole('admin'), async (req,
     } catch (err) {
         console.error("Erreur lors de la suppression du produit", err);
         res.status(500).send("Erreur serveur");
+    }
+});
+
+// Suppression en masse (admin uniquement)
+app.delete('/products', authenticateToken, requireRole('admin'), async (req, res) => {
+    try {
+        const { ids } = req.body || {};
+        if (!Array.isArray(ids) || ids.length === 0) {
+            return res.status(400).json({ message: 'Fournir un tableau ids non vide' });
+        }
+        const result = await Product.deleteMany({ _id: { $in: ids } });
+        res.json({ message: 'Suppression en masse effectuée', deletedCount: result.deletedCount });
+    } catch (err) {
+        console.error('Erreur lors de la suppression en masse', err);
+        res.status(500).send('Erreur serveur');
     }
 });
 

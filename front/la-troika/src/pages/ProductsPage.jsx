@@ -1,79 +1,57 @@
 import { useState, useEffect } from 'react';
 import { useParams, useSearchParams, Link } from 'react-router-dom';
+import ProductList from '../components/ProductList';
 
 const ProductsPage = () => {
     const { category } = useParams(); // Récupère la catégorie depuis l'URL
     const [searchParams, setSearchParams] = useSearchParams();
     const [selectedCategory, setSelectedCategory] = useState('tous');
     const [priceRange, setPriceRange] = useState([0, 500]);
-    const [sortBy, setSortBy] = useState('popularity');
+    const [sortBy, setSortBy] = useState('createdAt');
+    const [order, setOrder] = useState('desc');
+    const [page, setPage] = useState(1);
+    const [limit, setLimit] = useState(12);
+    const [loading, setLoading] = useState(false);
+    const [items, setItems] = useState([]);
+    const [total, setTotal] = useState(0);
+    const [pages, setPages] = useState(0);
 
-    // Données d'exemple pour tous les produits
-    const allProducts = [
-        // Produits Femmes
-        {
-            id: 1,
-            name: "Sac à main cuir premium",
-            price: 89.99,
-            category: "femmes",
-            subcategory: "sacs",
-            image: "https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=400&h=400&fit=crop",
-            description: "Sac élégant en cuir véritable, parfait pour toutes les occasions",
-            brand: "La Troika"
-        },
-        {
-            id: 2,
-            name: "Portefeuille cuir marron",
-            price: 45.99,
-            category: "femmes",
-            subcategory: "portefeuilles",
-            image: "https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=400&h=400&fit=crop",
-            description: "Portefeuille compact et fonctionnel",
-            brand: "La Troika"
-        },
-        {
-            id: 3,
-            name: "Trousse de maquillage",
-            price: 32.99,
-            category: "femmes",
-            subcategory: "accessoires",
-            image: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=400&fit=crop",
-            description: "Trousse pratique et élégante",
-            brand: "La Troika"
-        },
-        // Produits Hommes
-        {
-            id: 4,
-            name: "Portefeuille cuir noir",
-            price: 59.99,
-            category: "hommes",
-            subcategory: "portefeuilles",
-            image: "https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=400&h=400&fit=crop",
-            description: "Portefeuille élégant pour homme",
-            brand: "La Troika"
-        },
-        {
-            id: 5,
-            name: "Ceinture cuir marron",
-            price: 39.99,
-            category: "hommes",
-            subcategory: "ceintures",
-            image: "https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=400&h=400&fit=crop",
-            description: "Ceinture en cuir véritable",
-            brand: "La Troika"
-        },
-        // Accessoires
-        {
-            id: 6,
-            name: "Clés de voiture",
-            price: 25.99,
-            category: "accessoires",
-            subcategory: "petits-accessoires",
-            image: "https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=400&h=400&fit=crop",
-            description: "Porte-clés élégant",
-            brand: "La Troika"
+    const fetchProducts = async () => {
+        setLoading(true);
+        try {
+            const params = new URLSearchParams();
+            params.set('page', String(page));
+            params.set('limit', String(limit));
+            params.set('sort', sortBy);
+            params.set('order', order);
+            if (selectedCategory !== 'tous') params.set('category', selectedCategory);
+            if (priceRange[0] !== 0) params.set('minPrice', String(priceRange[0]));
+            if (priceRange[1] !== 500) params.set('maxPrice', String(priceRange[1]));
+
+            const res = await fetch(`http://localhost:5000/products?${params.toString()}`);
+            const data = await res.json();
+            if (res.ok && data && Array.isArray(data.items)) {
+                setItems(data.items);
+                setTotal(data.total);
+                setPages(data.pages);
+            } else if (Array.isArray(data)) {
+                // fallback (ancienne API sans pagination)
+                setItems(data);
+                setTotal(data.length);
+                setPages(1);
+            } else {
+                setItems([]);
+                setTotal(0);
+                setPages(0);
+            }
+        } catch (e) {
+            console.error('Erreur chargement produits', e);
+            setItems([]);
+            setTotal(0);
+            setPages(0);
         }
-    ];
+        setLoading(false);
+    };
 
     const categories = [
         { id: 'tous', name: 'Toutes les catégories', color: 'gray' },
@@ -88,26 +66,11 @@ const ProductsPage = () => {
         accessoires: ['petits-accessoires', 'trousses', 'porte-clés']
     };
 
-    // Filtrage des produits
-    const filteredProducts = allProducts.filter(product => {
-        const categoryMatch = selectedCategory === 'tous' || product.category === selectedCategory;
-        const priceMatch = product.price >= priceRange[0] && product.price <= priceRange[1];
-        return categoryMatch && priceMatch;
-    });
-
-    // Tri des produits
-    const sortedProducts = [...filteredProducts].sort((a, b) => {
-        switch (sortBy) {
-            case 'price-asc':
-                return a.price - b.price;
-            case 'price-desc':
-                return b.price - a.price;
-            case 'name':
-                return a.name.localeCompare(b.name);
-            default:
-                return 0;
-        }
-    });
+    // Charger depuis l'API quand filtres/pagination changent
+    useEffect(() => {
+        fetchProducts();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedCategory, priceRange, sortBy, order, page, limit]);
 
     // Mise à jour de l'URL quand les filtres changent
     useEffect(() => {
@@ -115,9 +78,12 @@ const ProductsPage = () => {
         if (selectedCategory !== 'tous') params.set('category', selectedCategory);
         if (priceRange[0] !== 0) params.set('minPrice', priceRange[0]);
         if (priceRange[1] !== 500) params.set('maxPrice', priceRange[1]);
-        if (sortBy !== 'popularity') params.set('sort', sortBy);
+        if (sortBy !== 'createdAt') params.set('sort', sortBy);
+        if (order !== 'desc') params.set('order', order);
+        if (page !== 1) params.set('page', String(page));
+        if (limit !== 12) params.set('limit', String(limit));
         setSearchParams(params);
-    }, [selectedCategory, priceRange, sortBy, setSearchParams]);
+    }, [selectedCategory, priceRange, sortBy, order, page, limit, setSearchParams]);
 
     // Récupération des paramètres depuis l'URL au chargement
     useEffect(() => {
@@ -125,11 +91,17 @@ const ProductsPage = () => {
         const urlMinPrice = searchParams.get('minPrice');
         const urlMaxPrice = searchParams.get('maxPrice');
         const urlSort = searchParams.get('sort');
+        const urlOrder = searchParams.get('order');
+        const urlPage = searchParams.get('page');
+        const urlLimit = searchParams.get('limit');
 
         if (urlCategory) setSelectedCategory(urlCategory);
         if (urlMinPrice) setPriceRange(prev => [parseInt(urlMinPrice), prev[1]]);
         if (urlMaxPrice) setPriceRange(prev => [prev[0], parseInt(urlMaxPrice)]);
         if (urlSort) setSortBy(urlSort);
+        if (urlOrder) setOrder(urlOrder);
+        if (urlPage) setPage(parseInt(urlPage));
+        if (urlLimit) setLimit(parseInt(urlLimit));
     }, [searchParams]);
 
     const getCategoryTitle = () => {
@@ -242,69 +214,83 @@ const ProductsPage = () => {
                     {/* Grille des produits */}
                     <div className="lg:col-span-3">
                         {/* Résultats */}
-                        <div className="mb-6">
+                        <div className="mb-6 flex items-center justify-between">
                             <p className="text-gray-600">
-                                {sortedProducts.length} produit{sortedProducts.length > 1 ? 's' : ''} trouvé{sortedProducts.length > 1 ? 's' : ''}
+                                {total} produit{total > 1 ? 's' : ''} au total
                             </p>
+                            <div className="flex gap-2 items-center">
+                                <select
+                                    value={sortBy}
+                                    onChange={(e) => setSortBy(e.target.value)}
+                                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                                >
+                                    <option value="createdAt">Plus récents</option>
+                                    <option value="price">Prix</option>
+                                    <option value="name">Nom</option>
+                                </select>
+                                <select
+                                    value={order}
+                                    onChange={(e) => setOrder(e.target.value)}
+                                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                                >
+                                    <option value="desc">Desc</option>
+                                    <option value="asc">Asc</option>
+                                </select>
+                                <select
+                                    value={limit}
+                                    onChange={(e) => { setPage(1); setLimit(parseInt(e.target.value)); }}
+                                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                                >
+                                    <option value={12}>12</option>
+                                    <option value={24}>24</option>
+                                    <option value={48}>48</option>
+                                </select>
+                            </div>
                         </div>
 
                         {/* Grille */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                            {sortedProducts.map(product => (
-                                <div key={product.id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
-                                    <div className="relative h-64">
-                                        <img 
-                                            src={product.image} 
-                                            alt={product.name}
-                                            className="w-full h-full object-cover"
-                                        />
-                                        <div className="absolute top-2 right-2 bg-white rounded-full p-2 shadow-md">
-                                            <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                                            </svg>
-                                        </div>
-                                        <div className="absolute top-2 left-2 bg-blue-500 text-white px-2 py-1 rounded-full text-xs font-medium">
-                                            {product.brand}
-                                        </div>
-                                    </div>
-
-                                    <div className="p-4">
-                                        <p className="text-xs text-gray-500 mb-1 uppercase">{product.subcategory}</p>
-                                        <h3 className="font-semibold text-lg text-gray-800 mb-2">
-                                            {product.name}
-                                        </h3>
-                                        <p className="text-gray-600 text-sm mb-3 line-clamp-2">
-                                            {product.description}
-                                        </p>
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-xl font-bold text-gray-800">
-                                                {product.price}€
-                                            </span>
-                                            <Link 
-                                                to={`/produit/${product.id}`}
-                                                className="bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-700 transition-colors"
-                                            >
-                                                Voir détails
-                                            </Link>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
+                        {loading ? (
+                            <div className="text-center py-12 text-gray-500">Chargement...</div>
+                        ) : (
+                            <ProductList items={items} />
+                        )}
 
                         {/* Message si aucun produit */}
-                        {sortedProducts.length === 0 && (
+                        {!loading && items.length === 0 && (
                             <div className="text-center py-12">
                                 <p className="text-gray-500 text-lg">Aucun produit trouvé avec ces critères</p>
                                 <button
                                     onClick={() => {
                                         setSelectedCategory('tous');
                                         setPriceRange([0, 500]);
-                                        setSortBy('popularity');
+                                        setSortBy('createdAt');
+                                        setOrder('desc');
+                                        setPage(1);
                                     }}
                                     className="mt-4 text-blue-600 hover:text-blue-700"
                                 >
                                     Voir tous les produits
+                                </button>
+                            </div>
+                        )}
+
+                        {/* Pagination */}
+                        {pages > 1 && (
+                            <div className="mt-8 flex justify-center items-center gap-2">
+                                <button
+                                    disabled={page <= 1}
+                                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                                    className="px-3 py-2 border rounded disabled:opacity-50"
+                                >
+                                    Précédent
+                                </button>
+                                <span className="text-sm text-gray-600">Page {page} / {pages}</span>
+                                <button
+                                    disabled={page >= pages}
+                                    onClick={() => setPage((p) => Math.min(pages, p + 1))}
+                                    className="px-3 py-2 border rounded disabled:opacity-50"
+                                >
+                                    Suivant
                                 </button>
                             </div>
                         )}

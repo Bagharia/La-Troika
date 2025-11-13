@@ -8,11 +8,29 @@ const User = require('../models/User');
 
 // Middlewares partagés
 const { authenticateToken, requireRole } = require('../utils/auth');
+const Joi = require('joi');
+const { validate } = require('../utils/validate');
 
 // ===== ROUTES D'AUTHENTIFICATION =====
 
 // POST /api/auth/register - Inscription
-router.post('/register', async (req, res) => {
+const registerSchema = {
+    body: Joi.object({
+        firstName: Joi.string().max(50).required(),
+        lastName: Joi.string().max(50).required(),
+        email: Joi.string().email().required(),
+        password: Joi.string().min(8).required(),
+        phone: Joi.string().optional(),
+        address: Joi.object({
+            street: Joi.string().allow(''),
+            city: Joi.string().allow(''),
+            postalCode: Joi.string().allow(''),
+            country: Joi.string().default('France')
+        }).optional()
+    })
+};
+
+router.post('/register', validate(registerSchema), async (req, res) => {
     try {
         const { firstName, lastName, email, password, phone, address } = req.body;
 
@@ -72,7 +90,14 @@ router.post('/register', async (req, res) => {
 });
 
 // POST /api/auth/login - Connexion
-router.post('/login', async (req, res) => {
+const loginSchema = {
+    body: Joi.object({
+        email: Joi.string().email().required(),
+        password: Joi.string().min(8).required()
+    })
+};
+
+router.post('/login', validate(loginSchema), async (req, res) => {
     try {
         const { email, password } = req.body;
 
@@ -174,7 +199,21 @@ router.post('/verify', authenticateToken, async (req, res) => {
 });
 
 // PUT /api/auth/profile - Mise à jour du profil (protégé)
-router.put('/profile', authenticateToken, async (req, res) => {
+const profileSchema = {
+    body: Joi.object({
+        firstName: Joi.string().max(50).optional(),
+        lastName: Joi.string().max(50).optional(),
+        phone: Joi.string().optional(),
+        address: Joi.object({
+            street: Joi.string().allow(''),
+            city: Joi.string().allow(''),
+            postalCode: Joi.string().allow(''),
+            country: Joi.string().optional()
+        }).optional()
+    })
+};
+
+router.put('/profile', authenticateToken, validate(profileSchema), async (req, res) => {
     try {
         const { firstName, lastName, phone, address } = req.body;
         const userId = req.user._id;
@@ -205,7 +244,14 @@ router.put('/profile', authenticateToken, async (req, res) => {
 });
 
 // PUT /api/auth/password - Changement de mot de passe (protégé)
-router.put('/password', authenticateToken, async (req, res) => {
+const passwordSchema = {
+    body: Joi.object({
+        currentPassword: Joi.string().min(8).required(),
+        newPassword: Joi.string().min(8).required()
+    })
+};
+
+router.put('/password', authenticateToken, validate(passwordSchema), async (req, res) => {
     try {
         const { currentPassword, newPassword } = req.body;
         const userId = req.user._id;
